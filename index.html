@@ -3,142 +3,147 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>勇者の街と洞窟の冒険RPG</title>
+    <title>勇者の平面マップRPG</title>
     <style>
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
-        background: radial-gradient(circle at top, #dbeafe, #bfdbfe 55%, #93c5fd);
-        color: #1f2937;
+        background: linear-gradient(180deg, #dbeafe, #bfdbfe);
+        color: #1e293b;
       }
       .wrap {
-        max-width: 980px;
-        margin: 20px auto;
+        max-width: 1060px;
+        margin: 16px auto;
         border: 3px solid #1d4ed8;
         border-radius: 14px;
         overflow: hidden;
-        background: #ffffff;
-        box-shadow: 0 12px 28px rgba(37, 99, 235, 0.25);
+        background: #fff;
+        box-shadow: 0 12px 24px rgba(30, 64, 175, 0.22);
       }
-      .title {
+      h1 {
         margin: 0;
-        padding: 14px 18px;
         background: #1d4ed8;
         color: #fff;
-        font-size: 1.15rem;
+        padding: 12px 16px;
+        font-size: 1.1rem;
       }
-      .grid {
+      .layout {
         display: grid;
-        grid-template-columns: 1.4fr 1fr;
+        grid-template-columns: 1.2fr 1fr;
         gap: 12px;
         padding: 12px;
       }
       .panel {
         border: 1px solid #bfdbfe;
         border-radius: 10px;
-        padding: 10px;
         background: #eff6ff;
+        padding: 10px;
       }
       #screen {
         width: 100%;
-        aspect-ratio: 16 / 10;
+        max-height: 72vh;
+        aspect-ratio: 1 / 1;
         border: 2px solid #1e3a8a;
         border-radius: 8px;
         background: #000;
         display: block;
       }
+      .hint { margin-top: 8px; font-size: 0.9rem; }
       .status {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
-        margin-top: 10px;
       }
       .card {
+        background: #fff;
         border: 1px solid #bfdbfe;
         border-radius: 8px;
         padding: 8px;
-        background: #fff;
       }
-      .bar { height: 12px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+      .bar { height: 12px; border-radius: 999px; overflow: hidden; background: #e5e7eb; }
       .fill { height: 100%; width: 100%; background: linear-gradient(90deg,#22c55e,#16a34a); }
       .enemy .fill { background: linear-gradient(90deg,#ef4444,#dc2626); }
-      .actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-      }
+      .scene { min-height: 48px; margin: 0 0 8px; line-height: 1.5; }
+      .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .buttons.move { grid-template-columns: repeat(3, 1fr); }
       button {
         border: 0;
         border-radius: 8px;
         background: #2563eb;
         color: #fff;
-        padding: 11px 8px;
+        padding: 10px 8px;
+        font-size: 0.95rem;
         cursor: pointer;
-        font-size: 0.96rem;
       }
-      button:disabled { opacity: 0.45; cursor: not-allowed; }
       button:hover:enabled { background: #1d4ed8; }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
       .sub { background: #0f766e; }
-      .sub:hover:enabled { background: #0b5f59; }
-      .scene { margin: 0 0 8px; min-height: 48px; line-height: 1.6; }
+      .sub:hover:enabled { background: #0d5f59; }
       .log {
-        margin-top: 10px;
+        margin-top: 8px;
+        max-height: 260px;
+        overflow: auto;
         border: 1px solid #bfdbfe;
         border-radius: 8px;
         background: #fff;
-        max-height: 250px;
-        overflow: auto;
         padding: 8px;
       }
-      .log p { margin: 0 0 6px; font-size: 0.94rem; }
-      .legend { font-size: 0.9rem; margin-top: 8px; color: #334155; }
-      @media (max-width: 800px) {
-        .grid { grid-template-columns: 1fr; }
-      }
+      .log p { margin: 0 0 6px; font-size: 0.92rem; }
+      @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
     <main class="wrap">
-      <h1 class="title">勇者の街と洞窟の冒険RPG（Chromeでそのまま遊べる）</h1>
-      <div class="grid">
+      <h1>平面マップRPG（ドラクエ1風）- 方向キーでも移動可能</h1>
+      <div class="layout">
         <section class="panel">
-          <canvas id="screen" width="640" height="400" aria-label="ゲーム画面"></canvas>
-          <div class="legend">移動先: 🏘️街 / 🕳️洞窟 / 🏰魔王城。洞窟で経験を積み、最後に魔王へ！</div>
-          <div class="status">
-            <div class="card">
-              <strong>🛡️ 勇者</strong>
-              <div>HP <span id="hero-hp">100</span>/<span id="hero-max">100</span></div>
-              <div class="bar"><div id="hero-bar" class="fill"></div></div>
-              <div>レベル <span id="hero-level">1</span> / EXP <span id="hero-exp">0</span></div>
-              <div>ポーション <span id="hero-potions">3</span>個 / G <span id="hero-gold">20</span></div>
-            </div>
-            <div class="card enemy">
-              <strong id="enemy-name">👹 敵情報</strong>
-              <div>HP <span id="enemy-hp">-</span>/<span id="enemy-max">-</span></div>
-              <div class="bar"><div id="enemy-bar" class="fill"></div></div>
-              <div id="enemy-note">探索中は敵がいません。</div>
-            </div>
-          </div>
+          <canvas id="screen" width="640" height="640" aria-label="ワールドマップ"></canvas>
+          <div class="hint">凡例: 🏘️町 / 🕳️洞窟 / 🏰魔王城 / 🌲森(エンカウント高) / ~水(通行不可)</div>
         </section>
 
         <section class="panel">
-          <p id="scene" class="scene">王都に到着。準備を整えて冒険へ出発しよう！</p>
-          <div class="actions">
-            <button id="go-town">🏘️ 街へ行く</button>
-            <button id="go-cave">🕳️ 洞窟を探検</button>
-            <button id="go-castle">🏰 魔王城へ</button>
-            <button id="rest" class="sub">🛏️ 宿で休む (10G)</button>
+          <p id="scene" class="scene">王都ラダトームから冒険開始！まずは洞窟を目指そう。</p>
+          <div class="status">
+            <div class="card">
+              <strong>🧙 勇者</strong>
+              <div>HP <span id="hero-hp">100</span>/<span id="hero-max">100</span></div>
+              <div class="bar"><div id="hero-bar" class="fill"></div></div>
+              <div>Lv <span id="hero-level">1</span> / EXP <span id="hero-exp">0/24</span></div>
+              <div>G <span id="hero-gold">30</span> / ポーション <span id="hero-potions">3</span></div>
+              <div>座標 (<span id="coord-x">0</span>, <span id="coord-y">0</span>)</div>
+            </div>
+            <div class="card enemy">
+              <strong id="enemy-name">👾 敵情報</strong>
+              <div>HP <span id="enemy-hp">-</span>/<span id="enemy-max">-</span></div>
+              <div class="bar"><div id="enemy-bar" class="fill"></div></div>
+              <div id="enemy-note">フィールド探索中</div>
+            </div>
+          </div>
 
-            <button id="attack">⚔️ こうげき</button>
+          <h3>移動</h3>
+          <div class="buttons move">
+            <button disabled>　</button>
+            <button id="move-up">⬆️ 上</button>
+            <button disabled>　</button>
+            <button id="move-left">⬅️ 左</button>
+            <button id="interact" class="sub">🔎 調べる</button>
+            <button id="move-right">➡️ 右</button>
+            <button disabled>　</button>
+            <button id="move-down">⬇️ 下</button>
+            <button id="rest" class="sub">🛏️ 休む(8G)</button>
+          </div>
+
+          <h3>戦闘</h3>
+          <div class="buttons">
+            <button id="attack">⚔️ 攻撃</button>
             <button id="skill">✨ ひっさつ</button>
+            <button id="guard">🛡️ 防御</button>
             <button id="potion">🧪 ポーション</button>
-            <button id="guard">🛡️ ぼうぎょ</button>
+            <button id="restart" class="sub" disabled>🔁 はじめから</button>
           </div>
-          <div class="log" id="log" aria-live="polite"></div>
-          <div style="margin-top:8px; display:flex; justify-content:flex-end;">
-            <button id="restart" class="sub" disabled>🔁 最初から冒険</button>
-          </div>
+
+          <div id="log" class="log" aria-live="polite"></div>
         </section>
       </div>
     </main>

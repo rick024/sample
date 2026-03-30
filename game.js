@@ -1,23 +1,70 @@
 (() => {
+  const MAP_W = 20;
+  const MAP_H = 20;
+  const TILE = 32;
+
+  const tileColors = {
+    G: "#84cc16", // grass
+    F: "#65a30d", // forest
+    M: "#6b7280", // mountain
+    W: "#38bdf8", // water
+    R: "#eab308", // road
+    T: "#f59e0b", // town
+    C: "#7c3aed", // cave
+    B: "#b91c1c", // boss castle
+  };
+
+  const mapRows = [
+    "WWWWWWWWWWWWWWWWWWWW",
+    "WGGGGGGGGGFFFFGGGGGW",
+    "WGGRRRRGGGFFFFGGMMGW",
+    "WGGRTTRGGGGGFGGGMMGW",
+    "WGGGRRRGGGGGFGGGGGGW",
+    "WGGGGGGGGMMMFGGGGGGW",
+    "WGGGFFFFGGMMMFGGGGGW",
+    "WGGGFFFFGGGGGFGGGGGW",
+    "WGGGGGGGGGGGGFGGGGGW",
+    "WGGGGMMMGGGGGFGGGGGW",
+    "WGGGGMMMGGGGGFGGGGGW",
+    "WGGGGGGGGGGGGFGGGGGW",
+    "WGGGGFGGGGGGGFGGGGGW",
+    "WGGGGFGGGCCCCFGGGGGW",
+    "WGGGGFGGGCCCCFGGGGGW",
+    "WGGGGFGGGGGGGFGGGGGW",
+    "WGGGGFGGGGGGGFGGGGGW",
+    "WGGGGFGGGGGGGFGGGBBW",
+    "WGGGGGGGGGGGGGGGGBBW",
+    "WWWWWWWWWWWWWWWWWWWW",
+  ];
+
   const state = {
-    phase: "explore",
-    location: "town",
-    turn: 1,
+    mode: "field", // field | battle
     gameOver: false,
     hero: {
+      x: 4,
+      y: 3,
       hp: 100,
       maxHp: 100,
       atk: 12,
       level: 1,
       exp: 0,
-      expToNext: 30,
+      expToNext: 24,
+      gold: 30,
       potions: 3,
-      gold: 20,
       guarding: false,
       skillCd: 0,
     },
     enemy: null,
   };
+
+  const enemies = [
+    { name: "スライム", icon: "🟢", hp: 30, atkMin: 6, atkMax: 10, exp: 9, gold: 6 },
+    { name: "ゴースト", icon: "👻", hp: 38, atkMin: 7, atkMax: 11, exp: 12, gold: 8 },
+    { name: "キラービー", icon: "🐝", hp: 34, atkMin: 8, atkMax: 13, exp: 13, gold: 9 },
+    { name: "ドラキー", icon: "🦇", hp: 42, atkMin: 9, atkMax: 14, exp: 15, gold: 11 },
+  ];
+
+  const bossBase = { name: "魔王", icon: "👹", hp: 180, atkMin: 12, atkMax: 20, exp: 100, gold: 120 };
 
   const el = {
     scene: document.getElementById("scene"),
@@ -27,158 +74,304 @@
     heroBar: document.getElementById("hero-bar"),
     heroLevel: document.getElementById("hero-level"),
     heroExp: document.getElementById("hero-exp"),
-    heroPotions: document.getElementById("hero-potions"),
     heroGold: document.getElementById("hero-gold"),
+    heroPotions: document.getElementById("hero-potions"),
+    coordX: document.getElementById("coord-x"),
+    coordY: document.getElementById("coord-y"),
     enemyName: document.getElementById("enemy-name"),
     enemyHp: document.getElementById("enemy-hp"),
     enemyMax: document.getElementById("enemy-max"),
     enemyBar: document.getElementById("enemy-bar"),
     enemyNote: document.getElementById("enemy-note"),
-    goTown: document.getElementById("go-town"),
-    goCave: document.getElementById("go-cave"),
-    goCastle: document.getElementById("go-castle"),
+    moveUp: document.getElementById("move-up"),
+    moveDown: document.getElementById("move-down"),
+    moveLeft: document.getElementById("move-left"),
+    moveRight: document.getElementById("move-right"),
+    interact: document.getElementById("interact"),
     rest: document.getElementById("rest"),
     attack: document.getElementById("attack"),
     skill: document.getElementById("skill"),
-    potion: document.getElementById("potion"),
     guard: document.getElementById("guard"),
+    potion: document.getElementById("potion"),
     restart: document.getElementById("restart"),
     canvas: document.getElementById("screen"),
   };
 
   const ctx = el.canvas.getContext("2d");
 
-  const data = {
-    caveEnemies: [
-      { name: "スライム", icon: "🟢", hp: 35, atkMin: 6, atkMax: 10, exp: 12, gold: 10 },
-      { name: "ゴブリン", icon: "👺", hp: 46, atkMin: 8, atkMax: 12, exp: 16, gold: 14 },
-      { name: "洞窟オオカミ", icon: "🐺", hp: 52, atkMin: 9, atkMax: 14, exp: 18, gold: 16 },
-    ],
-    boss: { name: "魔王", icon: "👹", hp: 160, atkMin: 12, atkMax: 20, exp: 80, gold: 60, rage: 0 },
-  };
-
   const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
-  function addLog(text) {
+  function log(text) {
     const p = document.createElement("p");
     p.textContent = text;
     el.log.prepend(p);
   }
 
-  function drawBackground() {
-    const w = el.canvas.width;
-    const h = el.canvas.height;
+  function tileAt(x, y) {
+    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return "W";
+    return mapRows[y][x];
+  }
 
-    if (state.location === "town") {
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, "#93c5fd");
-      grad.addColorStop(1, "#dbeafe");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = "#22c55e";
-      ctx.fillRect(0, h * 0.65, w, h * 0.35);
-      ctx.fillStyle = "#f59e0b";
-      ctx.fillRect(90, 180, 130, 95);
-      ctx.fillStyle = "#b91c1c";
-      ctx.beginPath();
-      ctx.moveTo(80, 180);
-      ctx.lineTo(155, 120);
-      ctx.lineTo(230, 180);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "26px sans-serif";
-      ctx.fillText("🏘️ 王都", 40, 50);
-    }
+  function drawMap() {
+    ctx.clearRect(0, 0, el.canvas.width, el.canvas.height);
+    for (let y = 0; y < MAP_H; y += 1) {
+      for (let x = 0; x < MAP_W; x += 1) {
+        const t = mapRows[y][x];
+        ctx.fillStyle = tileColors[t] || "#84cc16";
+        ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
 
-    if (state.location === "cave") {
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, "#1f2937");
-      grad.addColorStop(1, "#111827");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = "#374151";
-      for (let i = 0; i < 6; i += 1) {
-        ctx.beginPath();
-        const x = i * 120;
-        ctx.moveTo(x, h);
-        ctx.lineTo(x + 60, h - rand(120, 190));
-        ctx.lineTo(x + 120, h);
-        ctx.closePath();
-        ctx.fill();
+        if (t === "W") {
+          ctx.fillStyle = "rgba(255,255,255,0.25)";
+          ctx.fillRect(x * TILE, y * TILE + 6, TILE, 4);
+        }
+        if (t === "M") {
+          ctx.fillStyle = "#374151";
+          ctx.beginPath();
+          ctx.moveTo(x * TILE + 4, y * TILE + TILE - 4);
+          ctx.lineTo(x * TILE + TILE / 2, y * TILE + 7);
+          ctx.lineTo(x * TILE + TILE - 4, y * TILE + TILE - 4);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (t === "T" || t === "C" || t === "B") {
+          ctx.fillStyle = "#fff";
+          ctx.font = "18px sans-serif";
+          const icon = t === "T" ? "🏘️" : t === "C" ? "🕳️" : "🏰";
+          ctx.fillText(icon, x * TILE + 4, y * TILE + 24);
+        }
       }
-      ctx.fillStyle = "#fde047";
-      ctx.beginPath();
-      ctx.arc(560, 65, 22, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#e5e7eb";
-      ctx.font = "24px sans-serif";
-      ctx.fillText("🕳️ 洞窟", 40, 50);
     }
 
-    if (state.location === "castle") {
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, "#7f1d1d");
-      grad.addColorStop(1, "#111827");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = "#1f2937";
-      ctx.fillRect(230, 120, 180, 180);
-      ctx.fillRect(190, 85, 35, 215);
-      ctx.fillRect(415, 85, 35, 215);
-      ctx.fillStyle = "#fca5a5";
-      ctx.fillRect(302, 230, 36, 70);
-      ctx.fillStyle = "#fee2e2";
-      ctx.font = "24px sans-serif";
-      ctx.fillText("🏰 魔王城", 40, 50);
-    }
-  }
-
-  function drawCharacters() {
-    ctx.font = "80px sans-serif";
-    ctx.fillText("🧙", 120, 310);
-
-    if (state.phase === "battle" && state.enemy) {
+    if (state.mode === "battle" && state.enemy) {
+      ctx.fillStyle = "rgba(0,0,0,0.36)";
+      ctx.fillRect(0, 0, 640, 640);
+      ctx.fillStyle = "#fff";
+      ctx.font = "42px sans-serif";
+      ctx.fillText("⚔️ 戦闘中", 228, 90);
       ctx.font = "92px sans-serif";
-      ctx.fillText(state.enemy.icon, 460, 300);
+      ctx.fillText("🧙", 120, 360);
+      ctx.fillText(state.enemy.icon, 430, 350);
+    } else {
+      ctx.font = "26px sans-serif";
+      ctx.fillText("🧙", state.hero.x * TILE + 2, state.hero.y * TILE + 26);
     }
   }
 
-  function renderScene() {
-    drawBackground();
-    drawCharacters();
-  }
-
-  function enemySpawn(kind) {
-    if (kind === "boss") {
-      const b = data.boss;
+  function spawnEnemy(isBoss = false) {
+    if (isBoss) {
       return {
-        name: b.name,
-        icon: b.icon,
-        hp: b.hp,
-        maxHp: b.hp,
-        atkMin: b.atkMin,
-        atkMax: b.atkMax,
-        exp: b.exp,
-        gold: b.gold,
+        ...bossBase,
+        hp: bossBase.hp,
+        maxHp: bossBase.hp,
         rage: 0,
         isBoss: true,
       };
     }
-    const base = data.caveEnemies[rand(0, data.caveEnemies.length - 1)];
+    const b = enemies[rand(0, enemies.length - 1)];
+    const hp = b.hp + rand(-3, 5);
     return {
-      name: base.name,
-      icon: base.icon,
-      hp: base.hp + rand(-4, 6),
-      maxHp: base.hp + rand(-4, 6),
-      atkMin: base.atkMin,
-      atkMax: base.atkMax,
-      exp: base.exp,
-      gold: base.gold,
+      ...b,
+      hp,
+      maxHp: hp,
       rage: 0,
       isBoss: false,
     };
+  }
+
+  function enterBattle(isBoss = false) {
+    state.mode = "battle";
+    state.enemy = spawnEnemy(isBoss);
+    state.hero.guarding = false;
+    el.scene.textContent = isBoss ? "🏰 魔王が現れた！最終決戦！" : `${state.enemy.name} が現れた！`;
+    log(isBoss ? "👹 魔王との戦いが始まった！" : `👾 ${state.enemy.name} と遭遇！`);
+    refresh();
+  }
+
+  function gainRewards(e) {
+    state.hero.exp += e.exp;
+    state.hero.gold += e.gold;
+    log(`✨ ${e.name}を倒した！ EXP+${e.exp} / G+${e.gold}`);
+
+    while (state.hero.exp >= state.hero.expToNext) {
+      state.hero.exp -= state.hero.expToNext;
+      state.hero.level += 1;
+      state.hero.expToNext += 18;
+      state.hero.maxHp += 10;
+      state.hero.hp = state.hero.maxHp;
+      state.hero.atk += 2;
+      log(`⬆️ レベル${state.hero.level}！ 最大HP/攻撃アップ！`);
+    }
+  }
+
+  function finishGame(win) {
+    state.gameOver = true;
+    state.mode = "field";
+    state.enemy = null;
+    el.scene.textContent = win ? "🎉 魔王を倒した！世界に平和が戻った！" : "💀 勇者は倒れた…。";
+    log(win ? "🏆 エンディング達成！" : "☠️ ゲームオーバー。再挑戦しよう。");
+    refresh();
+  }
+
+  function endBattleWin() {
+    const e = state.enemy;
+    if (!e) return;
+    gainRewards(e);
+    if (e.isBoss) {
+      finishGame(true);
+      return;
+    }
+    state.mode = "field";
+    state.enemy = null;
+    el.scene.textContent = "勝利！フィールド探索に戻った。";
+    refresh();
+  }
+
+  function enemyTurn() {
+    if (!state.enemy || state.gameOver) return;
+    let damage = rand(state.enemy.atkMin, state.enemy.atkMax);
+
+    if (state.enemy.isBoss) {
+      state.enemy.rage += 1;
+      if (state.enemy.rage >= 4) {
+        state.enemy.rage = 0;
+        damage += rand(8, 14);
+        log("🔥 魔王の怒りが爆発！");
+      }
+    }
+
+    if (state.hero.guarding) {
+      damage = Math.floor(damage * 0.4);
+      log("🛡️ 防御でダメージ軽減！");
+    }
+
+    state.hero.hp = clamp(state.hero.hp - damage, 0, state.hero.maxHp);
+    state.hero.guarding = false;
+    log(`${state.enemy.icon} ${state.enemy.name}の攻撃！ ${damage}ダメージ。`);
+
+    if (state.hero.hp <= 0) {
+      finishGame(false);
+      return;
+    }
+
+    if (state.hero.skillCd > 0) state.hero.skillCd -= 1;
+    refresh();
+  }
+
+  function attack() {
+    if (state.mode !== "battle" || !state.enemy || state.gameOver) return;
+    const damage = rand(state.hero.atk - 1, state.hero.atk + 6);
+    state.enemy.hp = clamp(state.enemy.hp - damage, 0, state.enemy.maxHp);
+    log(`⚔️ 攻撃！ ${damage}ダメージ。`);
+    if (state.enemy.hp <= 0) return endBattleWin();
+    enemyTurn();
+  }
+
+  function skill() {
+    if (state.mode !== "battle" || !state.enemy || state.hero.skillCd > 0 || state.gameOver) return;
+    const damage = rand(state.hero.atk + 10, state.hero.atk + 18);
+    state.enemy.hp = clamp(state.enemy.hp - damage, 0, state.enemy.maxHp);
+    state.hero.skillCd = 3;
+    log(`✨ ひっさつ！ ${damage}ダメージ。`);
+    if (state.enemy.hp <= 0) return endBattleWin();
+    enemyTurn();
+  }
+
+  function guard() {
+    if (state.mode !== "battle" || state.gameOver) return;
+    state.hero.guarding = true;
+    log("🛡️ 防御姿勢をとった。 ");
+    enemyTurn();
+  }
+
+  function usePotion() {
+    if (state.hero.potions <= 0 || state.gameOver) return;
+    state.hero.potions -= 1;
+    const heal = rand(22, 36);
+    state.hero.hp = clamp(state.hero.hp + heal, 0, state.hero.maxHp);
+    log(`🧪 HPが${heal}回復。`);
+    if (state.mode === "battle") enemyTurn();
+    refresh();
+  }
+
+  function canMoveTo(x, y) {
+    const t = tileAt(x, y);
+    return t !== "W";
+  }
+
+  function maybeEncounter(tile) {
+    if (state.mode !== "field" || state.gameOver) return;
+    if (tile === "T") {
+      el.scene.textContent = "🏘️ 町に入った。休んで準備できる。";
+      return;
+    }
+    if (tile === "C") {
+      el.scene.textContent = "🕳️ 洞窟入口だ。調べると奥へ進める。";
+      return;
+    }
+    if (tile === "B") {
+      el.scene.textContent = "🏰 魔王城の門前。調べると最終決戦。";
+      return;
+    }
+
+    const rate = tile === "F" ? 0.26 : 0.12;
+    if (Math.random() < rate) {
+      enterBattle(false);
+    } else {
+      el.scene.textContent = tile === "F" ? "🌲 森を進んでいる…" : "草原を進んでいる。";
+      refresh();
+    }
+  }
+
+  function move(dx, dy) {
+    if (state.mode !== "field" || state.gameOver) return;
+    const nx = state.hero.x + dx;
+    const ny = state.hero.y + dy;
+    if (!canMoveTo(nx, ny)) {
+      log("🌊 そこには進めない。 ");
+      return;
+    }
+    state.hero.x = nx;
+    state.hero.y = ny;
+    const t = tileAt(nx, ny);
+    maybeEncounter(t);
+    refresh();
+  }
+
+  function interact() {
+    if (state.mode !== "field" || state.gameOver) return;
+    const t = tileAt(state.hero.x, state.hero.y);
+    if (t === "T") {
+      el.scene.textContent = "🏘️ 宿屋と道具屋がある町。";
+      log("町人『気をつけて旅を！』");
+    } else if (t === "C") {
+      log("洞窟の奥で魔物が襲いかかってきた！");
+      enterBattle(false);
+      return;
+    } else if (t === "B") {
+      enterBattle(true);
+      return;
+    } else {
+      log("特に何もない。 ");
+    }
+    refresh();
+  }
+
+  function rest() {
+    if (state.mode !== "field" || state.gameOver) return;
+    const t = tileAt(state.hero.x, state.hero.y);
+    if (t !== "T") {
+      log("🏘️ 町の中でしか休めない。 ");
+      return;
+    }
+    if (state.hero.gold < 8) {
+      log("💸 ゴールド不足（8G必要）。");
+      return;
+    }
+    state.hero.gold -= 8;
+    state.hero.hp = state.hero.maxHp;
+    log("🛏️ 宿で休んで全回復！");
+    refresh();
   }
 
   function refresh() {
@@ -186,8 +379,10 @@
     el.heroMax.textContent = String(state.hero.maxHp);
     el.heroLevel.textContent = String(state.hero.level);
     el.heroExp.textContent = `${state.hero.exp}/${state.hero.expToNext}`;
-    el.heroPotions.textContent = String(state.hero.potions);
     el.heroGold.textContent = String(state.hero.gold);
+    el.heroPotions.textContent = String(state.hero.potions);
+    el.coordX.textContent = String(state.hero.x);
+    el.coordY.textContent = String(state.hero.y);
     el.heroBar.style.width = `${(state.hero.hp / state.hero.maxHp) * 100}%`;
 
     if (state.enemy) {
@@ -195,215 +390,79 @@
       el.enemyHp.textContent = String(state.enemy.hp);
       el.enemyMax.textContent = String(state.enemy.maxHp);
       el.enemyBar.style.width = `${(state.enemy.hp / state.enemy.maxHp) * 100}%`;
-      el.enemyNote.textContent = state.enemy.isBoss ? `怒り: ${state.enemy.rage}/4` : "通常モンスター";
+      el.enemyNote.textContent = state.enemy.isBoss ? `怒り: ${state.enemy.rage}/4` : "通常エンカウント";
     } else {
-      el.enemyName.textContent = "👹 敵情報";
+      el.enemyName.textContent = "👾 敵情報";
       el.enemyHp.textContent = "-";
       el.enemyMax.textContent = "-";
       el.enemyBar.style.width = "0%";
-      el.enemyNote.textContent = "探索中は敵がいません。";
+      el.enemyNote.textContent = "フィールド探索中";
     }
 
-    const inBattle = state.phase === "battle" && !!state.enemy;
-    el.attack.disabled = !inBattle || state.gameOver;
-    el.skill.disabled = !inBattle || state.gameOver || state.hero.skillCd > 0;
-    el.potion.disabled = state.gameOver || state.hero.potions <= 0;
-    el.guard.disabled = !inBattle || state.gameOver;
+    const battle = state.mode === "battle";
+    el.attack.disabled = !battle || state.gameOver;
+    el.skill.disabled = !battle || state.gameOver || state.hero.skillCd > 0;
+    el.guard.disabled = !battle || state.gameOver;
+    el.potion.disabled = state.hero.potions <= 0 || state.gameOver;
 
-    el.goTown.disabled = state.gameOver || inBattle;
-    el.goCave.disabled = state.gameOver || inBattle;
-    el.goCastle.disabled = state.gameOver || inBattle;
-    el.rest.disabled = state.gameOver || inBattle;
+    el.moveUp.disabled = battle || state.gameOver;
+    el.moveDown.disabled = battle || state.gameOver;
+    el.moveLeft.disabled = battle || state.gameOver;
+    el.moveRight.disabled = battle || state.gameOver;
+    el.interact.disabled = battle || state.gameOver;
+    el.rest.disabled = battle || state.gameOver;
     el.restart.disabled = !state.gameOver;
 
-    renderScene();
-  }
-
-  function levelUpIfNeeded() {
-    while (state.hero.exp >= state.hero.expToNext) {
-      state.hero.exp -= state.hero.expToNext;
-      state.hero.level += 1;
-      state.hero.expToNext += 20;
-      state.hero.maxHp += 12;
-      state.hero.hp = state.hero.maxHp;
-      state.hero.atk += 2;
-      addLog(`⬆️ レベル${state.hero.level}になった！ 最大HPと攻撃力が上昇。`);
-    }
-  }
-
-  function endGame(win) {
-    state.gameOver = true;
-    state.phase = "explore";
-    state.enemy = null;
-    if (win) {
-      el.scene.textContent = "🎉 魔王を倒した！街に平和が戻った！";
-      addLog("🏆 エンディング: 勇者は英雄として讃えられた。");
-    } else {
-      el.scene.textContent = "💀 勇者は倒れた…もう一度冒険しよう。";
-      addLog("☠️ ゲームオーバー。");
-    }
-    refresh();
-  }
-
-  function enemyTurn() {
-    if (!state.enemy || state.gameOver) return;
-
-    let damage = rand(state.enemy.atkMin, state.enemy.atkMax);
-    if (state.enemy.isBoss) {
-      state.enemy.rage += 1;
-      if (state.enemy.rage >= 4) {
-        damage += rand(7, 13);
-        state.enemy.rage = 0;
-        addLog("🔥 魔王の怒り爆発！超強力な攻撃！");
-      }
-    }
-
-    if (state.hero.guarding) {
-      damage = Math.floor(damage * 0.45);
-      addLog("🛡️ 防御でダメージを軽減した。 ");
-    }
-
-    state.hero.hp = clamp(state.hero.hp - damage, 0, state.hero.maxHp);
-    addLog(`${state.enemy.icon} ${state.enemy.name}の攻撃！ ${damage}ダメージ。`);
-    state.hero.guarding = false;
-
-    if (state.hero.hp <= 0) {
-      endGame(false);
-      return;
-    }
-
-    if (state.hero.skillCd > 0) state.hero.skillCd -= 1;
-    state.turn += 1;
-    refresh();
-  }
-
-  function winBattle() {
-    const e = state.enemy;
-    addLog(`✨ ${e.name}を倒した！ EXP ${e.exp} / ${e.gold}G 獲得。`);
-    state.hero.exp += e.exp;
-    state.hero.gold += e.gold;
-    levelUpIfNeeded();
-
-    if (e.isBoss) {
-      endGame(true);
-      return;
-    }
-
-    state.phase = "explore";
-    state.enemy = null;
-    el.scene.textContent = "洞窟を進んだ。次はどうする？";
-    refresh();
-  }
-
-  function actionAttack() {
-    if (!state.enemy || state.gameOver) return;
-    const damage = rand(state.hero.atk - 2, state.hero.atk + 6);
-    state.enemy.hp = clamp(state.enemy.hp - damage, 0, state.enemy.maxHp);
-    addLog(`⚔️ 勇者の攻撃！${damage}ダメージ。`);
-    if (state.enemy.hp <= 0) return winBattle();
-    enemyTurn();
-  }
-
-  function actionSkill() {
-    if (!state.enemy || state.hero.skillCd > 0 || state.gameOver) return;
-    const damage = rand(state.hero.atk + 12, state.hero.atk + 20);
-    state.enemy.hp = clamp(state.enemy.hp - damage, 0, state.enemy.maxHp);
-    state.hero.skillCd = 3;
-    addLog(`✨ ひっさつ斬り！${damage}ダメージ。`);
-    if (state.enemy.hp <= 0) return winBattle();
-    enemyTurn();
-  }
-
-  function actionPotion() {
-    if (state.hero.potions <= 0 || state.gameOver) return;
-    state.hero.potions -= 1;
-    const heal = rand(20, 35);
-    state.hero.hp = clamp(state.hero.hp + heal, 0, state.hero.maxHp);
-    addLog(`🧪 HPを${heal}回復。`);
-    if (state.phase === "battle" && state.enemy) enemyTurn();
-    refresh();
-  }
-
-  function actionGuard() {
-    if (!state.enemy || state.gameOver) return;
-    state.hero.guarding = true;
-    addLog("🛡️ 防御姿勢をとった。 ");
-    enemyTurn();
-  }
-
-  function goTown() {
-    state.location = "town";
-    state.phase = "explore";
-    state.enemy = null;
-    el.scene.textContent = "王都に戻った。宿で回復したり、次の目的地を選ぼう。";
-    addLog("🏘️ 街に到着。人々が勇者を応援している。");
-    refresh();
-  }
-
-  function goCave() {
-    state.location = "cave";
-    state.phase = "battle";
-    state.enemy = enemySpawn("cave");
-    el.scene.textContent = `洞窟で ${state.enemy.name} が現れた！`;
-    addLog(`🕳️ 洞窟探索中、${state.enemy.name} と遭遇！`);
-    refresh();
-  }
-
-  function goCastle() {
-    state.location = "castle";
-    state.phase = "battle";
-    state.enemy = enemySpawn("boss");
-    el.scene.textContent = "玉座の間で魔王が待ち構えている！";
-    addLog("🏰 最終決戦！魔王との戦いが始まった。");
-    refresh();
-  }
-
-  function restAtInn() {
-    if (state.phase === "battle" || state.gameOver) return;
-    if (state.hero.gold < 10) {
-      addLog("💸 ゴールドが足りない…（必要: 10G）");
-      return;
-    }
-    state.hero.gold -= 10;
-    state.hero.hp = state.hero.maxHp;
-    addLog("🛏️ 宿で休んだ。HPが全回復！");
-    refresh();
+    drawMap();
   }
 
   function restart() {
-    state.phase = "explore";
-    state.location = "town";
-    state.turn = 1;
+    state.mode = "field";
     state.gameOver = false;
     state.enemy = null;
-
+    state.hero.x = 4;
+    state.hero.y = 3;
     state.hero.hp = 100;
     state.hero.maxHp = 100;
     state.hero.atk = 12;
     state.hero.level = 1;
     state.hero.exp = 0;
-    state.hero.expToNext = 30;
+    state.hero.expToNext = 24;
+    state.hero.gold = 30;
     state.hero.potions = 3;
-    state.hero.gold = 20;
     state.hero.guarding = false;
     state.hero.skillCd = 0;
-
     el.log.innerHTML = "";
-    el.scene.textContent = "王都に到着。準備を整えて冒険へ出発しよう！";
-    addLog("🌟 新しい冒険が始まった！");
+    el.scene.textContent = "王都ラダトームから冒険開始！まずは洞窟を目指そう。";
+    log("🌟 新しい冒険が始まった！");
     refresh();
   }
 
-  el.goTown.addEventListener("click", goTown);
-  el.goCave.addEventListener("click", goCave);
-  el.goCastle.addEventListener("click", goCastle);
-  el.rest.addEventListener("click", restAtInn);
-  el.attack.addEventListener("click", actionAttack);
-  el.skill.addEventListener("click", actionSkill);
-  el.potion.addEventListener("click", actionPotion);
-  el.guard.addEventListener("click", actionGuard);
+  el.moveUp.addEventListener("click", () => move(0, -1));
+  el.moveDown.addEventListener("click", () => move(0, 1));
+  el.moveLeft.addEventListener("click", () => move(-1, 0));
+  el.moveRight.addEventListener("click", () => move(1, 0));
+  el.interact.addEventListener("click", interact);
+  el.rest.addEventListener("click", rest);
+
+  el.attack.addEventListener("click", attack);
+  el.skill.addEventListener("click", skill);
+  el.guard.addEventListener("click", guard);
+  el.potion.addEventListener("click", usePotion);
   el.restart.addEventListener("click", restart);
 
-  addLog("🌟 新しい冒険が始まった！");
+  window.addEventListener("keydown", (e) => {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      e.preventDefault();
+    }
+    if (e.key === "ArrowUp") move(0, -1);
+    if (e.key === "ArrowDown") move(0, 1);
+    if (e.key === "ArrowLeft") move(-1, 0);
+    if (e.key === "ArrowRight") move(1, 0);
+    if (e.key.toLowerCase() === "z") interact();
+    if (e.key.toLowerCase() === "x") usePotion();
+  });
+
+  log("🌟 新しい冒険が始まった！ 方向キーで移動できます。");
   refresh();
 })();

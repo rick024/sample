@@ -1,11 +1,12 @@
 // ===============================
-// DQ風ミニRPG（拡張版 その3）
+// DQ風ミニRPG（拡張版 その3 スマホ対応）
 // - ボス撃破後に👹タイルが消える
 // - 敵強化＆EXP/G減少でレベル＆お金稼ぎを難しく
 // - 洞窟に宝箱📦追加（中身はアイテムやお金）
-// - ショップは「Zキーでそのまま購入」（confirmなし）
+// - ショップは「決定ボタン(Zキー)で即購入」
 // - MP導入（呪文ごとにMP消費）
 // - 必殺技はHP消費あり
+// - スマホ用タッチ操作（十字キー＋ステータス＋決定）
 // ===============================
 // -------------------------------
 // タイル定義
@@ -425,8 +426,8 @@ const player = {
   atk: 4,
   def: 1,
   exp: 0,
-  nextExp: 15,   // 初期必要EXPを増やしてレベルアップを重く
-  gold: 12,      // 初期所持金を少し減らす
+  nextExp: 15,   // 初期必要EXP
+  gold: 12,      // 初期所持金
   emoji: "🧙",
   weapon: { name: "たけざお", ...WEAPONS["たけざお"] },
   armor: { name: "ぬののふく", ...ARMORS["ぬののふく"] },
@@ -484,8 +485,8 @@ const shopFlags = {
   town2ArmorBought: false,
   town3ArmorBought: false,
 };
-// ショップで「Zキー」を待っている状態
-let pendingShop = null; // { kind, name, flagKey, netPrice, data } など
+// ショップで「決定（Z）」を待っている状態
+let pendingShop = null;
 // -------------------------------
 // NPC会話
 // -------------------------------
@@ -631,6 +632,10 @@ const cmdRunBtn = document.getElementById("cmd-run");
 const statusOverlayEl = document.getElementById("status-overlay");
 const statusDetailEl = document.getElementById("status-detail");
 const statusWindowEl = document.getElementById("status-window");
+// スマホ用ボタン
+const dpadButtons = document.querySelectorAll("#dpad button");
+const btnStatus = document.getElementById("btn-status");
+const btnOk = document.getElementById("btn-ok");
 // -------------------------------
 // 初期化
 // -------------------------------
@@ -742,7 +747,7 @@ statusOverlayEl.addEventListener("click", (e) => {
   }
 });
 // -------------------------------
-// 入力（Sキー / Zキー / 移動）
+// 入力（キーボード）
 // -------------------------------
 document.addEventListener("keydown", (e) => {
   // Sキーでステータス
@@ -753,7 +758,7 @@ document.addEventListener("keydown", (e) => {
     else openStatusOverlay();
     return;
   }
-  // ショップ購入確定（Zキー）: 押したらそのまま購入
+  // ショップ購入確定（Zキー）
   if (pendingShop && (e.key === "z" || e.key === "Z")) {
     e.preventDefault();
     handleShopConfirm();
@@ -774,6 +779,34 @@ document.addEventListener("keydown", (e) => {
   }
   e.preventDefault();
   tryMove(dx, dy);
+});
+// -------------------------------
+// 入力（スマホ用タッチ）
+// -------------------------------
+// 十字キーで移動
+dpadButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (inBattle || statusOpen) return;
+    const dir = btn.dataset.dir;
+    let dx = 0, dy = 0;
+    if (dir === "up") dy = -1;
+    else if (dir === "down") dy = 1;
+    else if (dir === "left") dx = -1;
+    else if (dir === "right") dx = 1;
+    tryMove(dx, dy);
+  });
+});
+// ステータスボタン
+btnStatus.addEventListener("click", () => {
+  if (inBattle) return;
+  if (statusOpen) closeStatusOverlay();
+  else openStatusOverlay();
+});
+// 「決定 / かう」ボタン（ショップ購入）
+btnOk.addEventListener("click", () => {
+  if (pendingShop) {
+    handleShopConfirm();
+  }
 });
 // -------------------------------
 // 移動・マップ遷移・宝箱
@@ -921,7 +954,6 @@ function openChestAt(x, y) {
   }
   // めったに装備が出る
   if (mapId === "cave3_2" && Math.random() < 0.15) {
-    // 強力な装備をどちらか
     if (Math.random() < 0.5) {
       weaponName = "ぎんのつるぎ";
     } else {
@@ -1050,7 +1082,7 @@ function openInn(price) {
   writeMessage("ゆうしゃは　やどに　とまった！\nHPとMPが　かいふくした！");
   SFX.heal();
 }
-// 武器屋（Zキーで即購入）
+// 武器屋（決定/Zキーで即購入）
 function openWeaponShop() {
   let name, flagKey;
   if (currentMap.id === "town1") {
@@ -1079,7 +1111,7 @@ function openWeaponShop() {
   msg += `  あたらしい: ${name}（+${newAtk}）\n`;
   msg += `  こうげき: ${diff >= 0 ? "+" + diff : diff} されるはずだよ。\n`;
   msg += `  きみのぶきを　${trade}Gで　ひきとるから\n  じっさいの しはらいは ${netPrice}G だね。\n`;
-  msg += `\nかうなら　Zキーを　おしてくれ。`;
+  msg += `\nかうなら　したの『決定』ボタンを　おしてくれ。`;
   writeMessage(msg);
   pendingShop = {
     kind: "weapon",
@@ -1089,7 +1121,7 @@ function openWeaponShop() {
     data: w,
   };
 }
-// 防具屋（Zキーで即購入）
+// 防具屋（決定/Zキーで即購入）
 function openArmorShop() {
   let name, flagKey;
   if (currentMap.id === "town1") {
@@ -1118,7 +1150,7 @@ function openArmorShop() {
   msg += `  あたらしい: ${name}（+${newDef}）\n`;
   msg += `  まもり: ${diff >= 0 ? "+" + diff : diff} されるはずだよ。\n`;
   msg += `  きみのよろいを　${trade}Gで　ひきとるから\n  じっさいの しはらいは ${netPrice}G だね。\n`;
-  msg += `\nかうなら　Zキーを　おしてくれ。`;
+  msg += `\nかうなら　したの『決定』ボタンを　おしてくれ。`;
   writeMessage(msg);
   pendingShop = {
     kind: "armor",
@@ -1128,7 +1160,7 @@ function openArmorShop() {
     data: a,
   };
 }
-// 道具屋（町ごとに違うアイテムを販売）
+// 道具屋（決定/Zキーで即購入）
 function openItemShop() {
   let key;
   if (currentMap.id === "town1") {
@@ -1141,7 +1173,7 @@ function openItemShop() {
   const def = ITEM_DEFS[key];
   const price = def.price;
   let msg = `「${def.name}　はいかがです？\n　ひとつ ${price}G ですよ。」\n`;
-  msg += `\nかうなら　Zキーを　おしてくれ。`;
+  msg += `\nかうなら　したの『決定』ボタンを　おしてくれ。`;
   writeMessage(msg);
   pendingShop = {
     kind: "item",
@@ -1149,7 +1181,7 @@ function openItemShop() {
     price,
   };
 }
-// Zキーでの購入確定処理（confirmなし）
+// 決定/Zキーでの購入確定処理（confirmなし）
 function handleShopConfirm() {
   if (!pendingShop) return;
   if (pendingShop.kind === "weapon") {
@@ -1321,7 +1353,6 @@ function winBattle() {
   if (inBossBattle && currentBossKey) {
     if (!bossState[currentBossKey]) {
       bossState[currentBossKey] = true;
-      // ボスのいたマスを床に置き換えて「消す」
       if (currentMap.type === MAP_TYPE.CAVE &&
           currentMap.data[player.y][player.x] === TILE.BOSS) {
         currentMap.data[player.y][player.x] = TILE.CAVE_FLOOR;
@@ -1561,7 +1592,6 @@ function castSpell(name) {
     writeMessage("しかし　MPが　たりない！");
     return;
   }
-  // 消費してから効果
   player.mp -= cost;
   updateStatus();
   if (name === "ホイミ") {
@@ -1671,7 +1701,6 @@ cmdTechBtn.addEventListener("click", () => {
 function useTech(name) {
   if (!inBattle || !currentEnemy) return;
   const hpCost = TECH_HP_COST[name] ?? 0;
-  // 自己犠牲は不可：少なくとも1以上残るように
   if (player.hp <= hpCost + 1) {
     writeMessage("しかし　HPが　たりない！");
     return;

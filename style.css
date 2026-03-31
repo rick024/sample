@@ -1,0 +1,199 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html, body {
+  height: 100%;
+}
+body {
+  background: #101020;
+  color: #f0f0f0;
+  font-family: "Courier New", monospace;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#game-container {
+  border: 2px solid #888;
+  background: #000018;
+  padding: 8px;
+  width: 640px;
+  max-width: 100%;
+  position: relative; /* ステータス画面オーバーレイ用 */
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+h1 {
+  font-size: 20px;
+  margin-right: 8px;
+}
+#status {
+  font-size: 12px;
+  line-height: 1.4;
+}
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#map-container {
+  border: 2px solid #555;
+  background: #001020;
+  padding: 4px;
+  overflow: hidden;
+}
+#map {
+  display: inline-block;
+  font-size: 24px;
+  line-height: 1.1;
+}
+.map-row {
+  white-space: nowrap;
+  height: 1.4em;
+}
+.tile {
+  display: inline-block;
+  width: 1.4em;
+  text-align: center;
+}
+.tile.player {
+  text-shadow: 0 0 4px #fff;
+}
+/* メッセージボックス */
+#message-box {
+  border: 2px solid #555;
+  background: #000010;
+  min-height: 90px;
+  padding: 4px;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+#message-log {
+  min-height: 60px;
+  white-space: pre-wrap;
+}
+#hint {
+  border-top: 1px solid #333;
+  margin-top: 4px;
+  padding-top: 2px;
+  color: #cccccc;
+  font-size: 11px;
+}
+/* 戦闘パネル */
+#battle-panel {
+  border: 2px solid #aa3333;
+  background: #200000;
+  padding: 4px;
+  font-size: 14px;
+}
+#battle-enemy {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+#enemy-emoji {
+  font-size: 48px;
+  margin-right: 8px;
+}
+#enemy-info {
+  line-height: 1.4;
+}
+#battle-commands {
+  display: flex;
+  gap: 4px;
+}
+#battle-commands button {
+  flex: 1;
+  background: #333;
+  color: #fff;
+  border: 1px solid #777;
+  padding: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#battle-commands button:hover {
+  background: #555;
+}
+#battle-commands button:active {
+  background: #777;
+}
+.hidden {
+  display: none;
+}
+/* ステータス画面オーバーレイ */
+#status-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+/* hidden クラスが付いているときは非表示（優先度上げ） */
+#status-overlay.hidden {
+  display: none;
+}
+#status-window {
+  border: 2px solid #888;
+  background: #000020;
+  padding: 8px;
+  width: 90%;
+  max-width: 400px;
+}
+#status-window h2 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+#status-detail {
+  font-size: 12px;
+  white-space: pre-wrap;
+  min-height: 120px;
+}
+.status-close {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #ccc;
+  text-align: right;
+}
+/* 呪文・必殺技エフェクト */
+.effect-spell {
+  animation: spellFlash 0.4s ease-out;
+}
+.effect-tech {
+  animation: techShake 0.4s ease-out;
+}
+@keyframes spellFlash {
+  0% {
+    transform: scale(1);
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  50% {
+    transform: scale(1.3);
+    filter: hue-rotate(120deg) brightness(1.6);
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+}
+@keyframes techShake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-4px); }
+  40%  { transform: translateX(4px); }
+  60%  { transform: translateX(-2px); }
+  80%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+footer {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #999;
+  text-align: right;
+}

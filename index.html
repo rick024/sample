@@ -25,7 +25,7 @@
       <div id="message-box">
         <div id="message-log"></div>
         <div id="hint">
-          ←↑↓→キーで移動 / Sキーでステータス / 森や洞窟で敵と戦闘 / 店でZキーで買い物
+          画面下のボタンで移動・ステータス・買い物ができます（PCでは←↑↓→キーやSキーも使えます）
         </div>
       </div>
       <div id="battle-panel" class="hidden">
@@ -52,6 +52,22 @@
           <div class="status-close">Sキーか外側クリックでとじる</div>
         </div>
       </div>
+      <!-- ▼ スマホ用のタッチ操作ボタン ▼ -->
+      <div id="touch-controls">
+        <div id="dpad">
+          <button data-dir="up">▲</button>
+          <div class="dpad-row">
+            <button data-dir="left">◀</button>
+            <button data-dir="down">▼</button>
+            <button data-dir="right">▶</button>
+          </div>
+        </div>
+        <div id="touch-buttons">
+          <button id="btn-status">ステータス</button>
+          <button id="btn-ok">決定 / かう</button>
+        </div>
+      </div>
+      <!-- ▲ スマホ用のタッチ操作ボタン ▲ -->
     </main>
     <footer>
       <small>※このゲームはブラウザだけで動作するシンプルなサンプルです。</small>
